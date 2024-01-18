@@ -12,7 +12,7 @@ This report aims to reproduce the figure and table presented in ["How Americans 
 
 # Packages 
 
-We first load `dplyr`, `tidyverse`, `kableExtra`, and `ggplot2` packages using `pacman`.
+We first load `dplyr`, `tidyverse`, `kableExtra`, and `ggplot2` packages using `pacman`. This report is generated using R version 4.3.2.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
