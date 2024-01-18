@@ -1,0 +1,152 @@
+---
+title: "BST 270: Individual project"
+author: Xiaonan Liu
+output:
+  html_document:
+    code_folding: show
+---
+
+# Introduction
+
+This report aims to reproduce the figure and table presented in ["How Americans Like Their Steak"](https://fivethirtyeight.com/features/how-americans-like-their-steak/). This article presented the results from a survey on whether risk-averse people are more likely to order their steak well done. They collected survey reponses from 550 people on their preference of steak and risky events (e.g. speeding in traffic, buying riskier lottery, and skydiving). Then they produced tables and plots (which we reproduced below) to investigate this relationship.
+
+# Packages 
+
+We first load `dplyr`, `tidyverse`, `kableExtra`, and `ggplot2` packages using `pacman`.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Write a function for pretty format of numbers
+pretty_dp <- function(x, dp=0, pct=FALSE, comma=FALSE){
+  if(pct){x <- 100*x}
+  if(comma){
+    format(round(x, dp), digits=dp, nsmall=dp, big.mark=",") %>% trimws
+  } else {
+    format(round(x, dp), digits=dp, nsmall=dp) %>% trimws
+  }
+}
+
+```
+
+```{r,message=FALSE}
+# load relevant packages 
+if (!require('pacman')) {
+    install.packages('pacman')
+} 
+pacman::p_load('dplyr', 'ggplot2', 'tidyverse', 'knitr', 'kableExtra')
+
+```
+
+Then we read in data, which was originally downloaded from [here](https://github.com/fivethirtyeight/data/blob/master/steak-survey/steak-risk-survey.csv).
+
+```{r}
+
+# Read in data
+data<-read.csv("steak-risk-survey.csv", na.strings=c("","NA"))
+
+# Rename columns to shorter readable names
+names(data)<-c("ID","Lottery","Smk","Alc","Gamble","Skydiving","Drive","Cheat","Steak_ind","Steak_like","Gender","Age","Income","Edu","Location")
+
+# Remove second row because of redundant text
+data<-data[2:nrow(data),]
+
+# Make "steak preference" variable as a factor for plotting purpose later
+data$Steak_like=factor(data$Steak_like, levels=c("Well","Medium Well","Medium","Medium rare","Rare"), labels = c("Well","Medium-well","Medium","Medium-rare","Rare"))
+```
+
+
+There were a total of `r nrow(data)` participants that took the survey, which is the same number shown in the article.
+
+
+# Table
+
+In this section, we create a table showing the proportion of steak preferences among respondents who choose the riskier lottery (i.e. Lottery A) and safer lottery (i.e. Lottery B) respectively. 
+
+```{r}
+
+# First we extract the two columns used to produce the frequency table and remove missing data
+data1<-data[,c("Lottery","Steak_like")]%>%
+  filter(!is.na(Lottery) & !is.na(Steak_like))
+
+```
+
+We first extract columns of interest, `Lottery` and `Steak_like`, then we remove the missing data, which lead to a total of `r nrow(data1)` respondents left. 
+
+
+```{r}
+
+# Create frequency table
+crosstab<-data1%>%
+  group_by(Steak_like)%>%
+  # Compute frequency of steak preferences within Lottery A and B respectively
+  summarise(
+    across(Lottery, list(Risk = ~ sum(. == "Lottery A"),
+                          Safe  = ~ sum(. == "Lottery B"))))%>%
+  mutate(
+    # Compute total number of people who prefer Lottery A and B
+    N_Risk=sum(Lottery_Risk),N_Safe=sum(Lottery_Safe),
+    # Compute percentage of steak preferences within Lottery A and B
+    Risk_perc=pretty_dp(Lottery_Risk/N_Risk,dp=1,pct=TRUE),
+    Safe_perc=pretty_dp(Lottery_Safe/N_Safe,dp=1,pct=TRUE)
+    )%>%
+  select(Steak_like,Risk_perc,Safe_perc)
+
+names(crosstab)<-c("STEAK PREFERENCE","RESPONDENTS WHO CHOOSE THE \n RISKIER LOTTERY","RESPONDENTS WHO CHOOSE THE \n SAFER LOTTERY")
+
+# Display % for the first row
+crosstab[1,2]=paste0(crosstab[1,2],"%")
+crosstab[1,3]=paste0(crosstab[1,3],"%")
+
+kable(crosstab)%>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+We see that the table is the same as presented in the article.
+
+# Plot 
+
+```{r}
+
+# Remove missing data for steak preference
+data2<-data%>%filter(!is.na(Steak_like))
+
+```
+
+
+Lastly, we create a barplot showing the percentages and ranking of individuals' steak preferences from a survey of `r nrow(data2)` steak-eating Americans.
+
+
+```{r, fig.width=7,fig.height=3}
+
+# Create a data frame listing the percentage of steak preference
+steak_prop<-as.data.frame(prop.table(table(data2$Steak_like)))%>%
+  mutate(Prop=round(Freq*100))
+
+# Display % in the first row
+steak_prop[1,"Prop"]=paste0(steak_prop[1,"Prop"],"%")
+
+# Create the barplot
+ggplot(data=steak_prop, aes(x=Var1, y=Freq,fill=Var1)) +
+  geom_text(aes(label=Prop), hjust=-0.5, colour = "black", position=position_dodge(width=0.2)) +
+  geom_bar(stat="identity") + 
+  scale_x_discrete(limits = rev) +
+  coord_flip()+ guides(fill="none") +
+  scale_fill_manual(values=c("#471A1A","#663300","#994c00","#C96D6D","#D14545"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),axis.title.x = element_blank(),
+        plot.title = element_text(face="bold"),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks.y = element_blank())+
+  labs(title="'How Do You Like Your Steak Prepared?'",subtitle="From a survey of 432 steak-eating Americans")
+
+```
+
+We see that the barplot is the same as presented in the article.
+
+
+
+
+
+
